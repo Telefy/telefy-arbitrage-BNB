@@ -47,7 +47,7 @@ io.use(async (socket, next) => {
           for (let ex = 0; ex < exchanges.length; ex++) {
             new Promise(async (resolve, rejects) => {
               await con.query(
-                `SELECT * FROM m_common_pair where exchange_id = '${exchanges[ex].exchange_id}' and pair_id in (11,12) ORDER by pair_id ASC`,
+                `SELECT * FROM m_common_pair where exchange_id = '${exchanges[ex].exchange_id}' ORDER by pair_id ASC LIMIT 200`,
                 async (err, exresult) => {
                   if (err) throw err;
                   let i = 0;
