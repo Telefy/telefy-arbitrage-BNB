@@ -1,27 +1,27 @@
-const panSdk = require('@pancakeswap/sdk');
+const sdk = {"PANCAKESWAP": require('@pancakeswap/sdk')};
+// const PANCAKESWAP = require('@pancakeswap/sdk');
+const {isHexString} = require("@ethersproject/bytes");
 const init = async () => {
 
 
 
- 
-    const WBNB = new panSdk.Token(1, '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c', 18)
-
-    const BUSD = new panSdk.Token(1, '0xe9e7cea3dedca5984780bafc599bd69add087d56', 18)
-    // new Pair(new TokenAmount(token0, reserve0.toString()), new TokenAmount(token1, reserve1.toString())),
-    const usdcWethPair = new panSdk.Pair(
-        new panSdk.TokenAmount(WBNB,"452634086962616530070983"),
-        new panSdk.TokenAmount(BUSD, "248055684356586547919150000"),
+    let pancke = "PANCAKESWAP";
+    const BUSD = new sdk[pancke].Token(1, '0xe9e7cea3dedca5984780bafc599bd69add087d56', 18) //busd
+    const BAT = new sdk[pancke].Token(1, '0x101d82428437127bf1608f699cd651e6abf9766e', 18)  // bat
+    const usdcWethPair = new sdk[pancke].Pair(
+        new sdk[pancke].TokenAmount(BUSD,"1522819335159908929125"),
+        new sdk[pancke].TokenAmount(BAT, "1178108569896616129786"),
       )
 
 
 
 // console.log(usdcWethPair)
-      let usdcInput  = 10 * 10 ** 18;
+      let usdcInput  = 1000 * 10 ** 18;
 
-   const trade =  new panSdk.Trade(
-        new panSdk.Route([usdcWethPair], WBNB,BUSD),
-        new panSdk.TokenAmount(WBNB, usdcInput),
-        panSdk.TradeType.EXACT_INPUT
+   const trade =  new sdk[pancke].Trade(
+        new sdk[pancke].Route([usdcWethPair], BUSD,BAT),
+        new sdk[pancke].TokenAmount(BUSD, usdcInput),
+        sdk[pancke].TradeType.EXACT_INPUT
       )
 
   let usdcOutputWeth  = trade.outputAmount.toSignificant(6)

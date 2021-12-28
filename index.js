@@ -1,6 +1,3 @@
-// const Big = require("big.js");
-// const blk = require("./blockchain");
-// var sushiApi = require("sushiswap-api");
 const axios = require("axios");
 const express = require("express");
 const Web3 = require('web3');
@@ -10,11 +7,15 @@ const router = express.Router();
 const mysql = require("mysql");
 const server = require("http").createServer(app);
 const io = require("socket.io")(server);
-const sushiSdk =  require('@sushiswap/sdk')
-const uniSDK = require("@uniswap/sdk-core");
-const uniSdkV2 = require("@uniswap/v2-sdk");
 const baseTokens = require("./tokens.json");
-const baseArray = ['WETH','USDT','WBTC','DAI'];  /// need to change based on token.js file
+const sdk = {
+  "PANCAKESWAP": require('@pancakeswap/sdk'),
+  "APESWAP": require('love-apeswapfinance-sdk')
+};
+const baseArray = [];
+for (const property in baseTokens) {
+  baseArray.push(property);
+}
 var con = mysql.createConnection({
   host: "testdev.rungila.com",
   user: "user1",
@@ -38,7 +39,7 @@ io.use(async (socket, next) => {
   if (socket.handshake.query && socket.handshake.query.client) {
     table = [];
     await con.query(
-      `SELECT name as exchange_type,exchange_id FROM m_exchanges order by exchange_id asc limit 1`,
+      `SELECT name as exchange_type,exchange_id FROM m_exchanges order by exchange_id desc limit 2`,
       async (err, result) => {
         if (err) throw err;
         exchanges = result;
@@ -46,7 +47,7 @@ io.use(async (socket, next) => {
           for (let ex = 0; ex < exchanges.length; ex++) {
             new Promise(async (resolve, rejects) => {
               await con.query(
-                `SELECT * FROM m_common_pair where exchange_id = '${exchanges[ex].exchange_id}' and pair_id in ('266') ORDER by pair_id ASC limit 1`,
+                `SELECT * FROM m_common_pair where exchange_id = '${exchanges[ex].exchange_id}' and pair_id in (11,12) ORDER by pair_id ASC`,
                 async (err, exresult) => {
                   if (err) throw err;
                   let i = 0;
@@ -124,14 +125,14 @@ io.use(async (socket, next) => {
           let getExchangeInput = new Promise(async (resolve, reject) => {
            
   
-            let staticPathArray = ['USDC'];
+            let staticPathArray = ['BUSD'];
   
             let modifiedBaseArray = [];
 
             let fromToken;
             let toToken;
             let baseTokensEquals = false;
-            if(baseTokens[staticPathArray[staticPathArray.length-1]].token.toString() == baseInfo.token0){   // USDC == USDC
+            if(baseTokens[staticPathArray[staticPathArray.length-1]].token.toString() == baseInfo.token0){   // BUSD == BUSD
               fromToken = baseTokens[staticPathArray[staticPathArray.length-1]].token.toString();
               toToken = baseInfo.token1;
               baseTokensEquals = true;
@@ -141,32 +142,182 @@ io.use(async (socket, next) => {
               baseTokensEquals = false;
             }
   
-            let usdcResult = await checkWithGraphAPI(fromToken, toToken,baseInfo);
+            let usdcResult = await checkPairExist(fromToken, toToken,baseInfo);
             if (usdcResult) {
                 staticPathArray.push(baseInfo.symbol0)
-                let tradeFunction = await tradecheck(staticPathArray,baseInfo);
-
             } else {
               modifiedBaseArray = await modifyBaseArray(baseArray, staticPathArray);
-              let checkPairpath = await recFunction(staticPathArray, modifiedBaseArray,baseInfo);
-              console.log(checkPairpath);
+              staticPathArray = await recFunction(staticPathArray, modifiedBaseArray,baseInfo);
+
             }
             
+            let inputTradeResult = await inputTradecheck(staticPathArray,baseInfo);
+            let outPutTradeResult = await outputTradecheck(inputTradeResult[inputTradeResult.length-1],baseInfo);
+
+            resolve(outPutTradeResult)
 
           })
 
           let uniswapInput = await getExchangeInput;
           console.log(uniswapInput);
-            // let worthThourArbit = await checkOtherExchange(uniswapInput,otherExchanges,baseInfo.exchange,baseInfo.token0,baseInfo.token1);
-            // allArbitrage.push(worthThourArbit);          
+            let worthThourArbit = await checkOtherExchange(uniswapInput,otherExchanges,baseInfo);
+            allArbitrage.push(worthThourArbit);          
            
-        }
-      // }, 50000);
+        } 
+        let tokenIds = value.token0.toString()+value.token1.toString();
+        io.sockets.emit(tokenIds,
+          allArbitrage
+        );
+      // }, 10000);
     };
-    
-    let tradecheck = async (staticPathArray,baseInfo)=> {
-      console.log(staticPathArray,"----")
+    //['BUSD', 'BAT']  // AUCTAL PAIR  : CAKE/DIA
+    let inputTradecheck = async (staticPathArray,baseInfo) => {
+      return new Promise(async (resolve,reject) => {
+        let busdInput = []
+         for(let i=0; i < staticPathArray.length; i++){           
+          
+             let token0Address = baseTokens[staticPathArray[i]].token.toString();
+          
+             let token1Address;
+            if(parseInt(i+2) == parseInt(staticPathArray.length)){
+               token1Address = baseInfo.token0
+            } else {
+                token1Address = baseTokens[staticPathArray[i+1]].token.toString()
+              }
+               
+
+             let decimal0 = baseTokens[staticPathArray[i]].decimal;
+             let decimal1;
+             if(parseInt(i+2) == parseInt(staticPathArray.length)){
+               decimal1 = baseInfo.decimal0
+            } else {
+               decimal1 = baseTokens[staticPathArray[i+1]].decimal
+              }
+
+             let token0 = new sdk[baseInfo.exchange].Token(1, Web3.utils.toChecksumAddress(token0Address), decimal0);
+             let token1 = new sdk[baseInfo.exchange].Token(1, Web3.utils.toChecksumAddress(token1Address), decimal1);
+
+             let getPairId = await checkPairExist(token0Address, token1Address,baseInfo);
+             if(getPairId){              
+              let getReserves = await checkReserves(getPairId);
+              if(getReserves.length > 0){
+                let getToken0Api = await token0Api(getPairId);
+                let contractToken0 = getToken0Api.toLowerCase();
+                let checkWIthContractToken0 = token0Address.toLowerCase();
+                let reserve0;
+                let reserve1;
+                if(contractToken0 === checkWIthContractToken0) {
+                  reserve0 = getReserves[0].reserve0;
+                  reserve1 = getReserves[0].reserve1;
+                } else {
+                  reserve0 = getReserves[0].reserve1;
+                  reserve1 = getReserves[0].reserve0;
+                }
+                let usdcInputCoins = ['1000000000000000000000','5000000000000000000000','10000000000000000000000'];
+                let usdcInputDollars = ["$1000","$5000","$10000"];
+
+                let pair = await new sdk[baseInfo.exchange].Pair(
+                  new sdk[baseInfo.exchange].TokenAmount(token0,reserve0.toString()),
+                  new sdk[baseInfo.exchange].TokenAmount(token1, reserve1.toString()),
+                )
+
+                let tempArr = [];
+                if(busdInput.length > 0){
+                  let busdInputLastElement = busdInput[busdInput.length-1];
+                  for (let uCoin = 0; uCoin < busdInputLastElement.length; uCoin++) {
+                    let input = (busdInputLastElement[uCoin].outputAmount * 10 **  parseInt(decimal0)).toFixed();                 
+                    input = Number(input).toLocaleString().replace(/,/g,"")
+                    const trade = await new sdk[baseInfo.exchange].Trade(
+                         new sdk[baseInfo.exchange].Route([pair], token0,token1),
+                         new sdk[baseInfo.exchange].TokenAmount(token0, input),
+                         sdk[baseInfo.exchange].TradeType.EXACT_INPUT
+                       )
+                       
+                       tempArr.push({
+                        inputAmount : trade.inputAmount.toSignificant(6),
+                        outputAmount: trade.outputAmount.toSignificant(6),                         
+                        dollarWorth: usdcInputDollars[uCoin]
+                       })
+                  }
+                  
+                } else {
+                  
+                  for (let uCoin = 0; uCoin < usdcInputCoins.length; uCoin++) {
+
+                    const trade = await new sdk[baseInfo.exchange].Trade(
+                         new sdk[baseInfo.exchange].Route([pair], token0,token1),
+                         new sdk[baseInfo.exchange].TokenAmount(token0, usdcInputCoins[uCoin]),
+                         sdk[baseInfo.exchange].TradeType.EXACT_INPUT
+                       )
+                 
+                       tempArr.push({
+                         inputAmount : trade.inputAmount.toSignificant(6),
+                         outputAmount: trade.outputAmount.toSignificant(6),                         
+                         dollarWorth: usdcInputDollars[uCoin]
+                        })
+                  }
+
+                  
+                } 
+                busdInput.push(tempArr)
+
+
+              }
+             }  
+             
+             if(parseInt(i+2) == parseInt(staticPathArray.length)){
+              resolve(busdInput)
+              break;
+            }
+
+         }
+      })
     }
+
+    let outputTradecheck = async (inputAmounts, baseInfo) => {
+      return new Promise(async (resolve, reject) => {
+        let baseInput = [];
+
+        let token0 = new sdk[baseInfo.exchange].Token(
+          1,
+          Web3.utils.toChecksumAddress(baseInfo.token0),
+          baseInfo.decimal0
+        );
+        let token1 = new sdk[baseInfo.exchange].Token(
+          1,
+          Web3.utils.toChecksumAddress(baseInfo.token1),
+          baseInfo.decimal1
+        );
+
+        let getReserves = await checkReserves(baseInfo.pairId);
+        if (getReserves.length > 0) {
+          let reserve0 = getReserves[0].reserve0;
+          let reserve1 = getReserves[0].reserve1;
+
+          let pair = await new sdk[baseInfo.exchange].Pair(
+            new sdk[baseInfo.exchange].TokenAmount(token0, reserve0.toString()),
+            new sdk[baseInfo.exchange].TokenAmount(token1, reserve1.toString())
+          );
+
+          for (let uCoin = 0; uCoin < inputAmounts.length; uCoin++) {
+            let input =
+              (inputAmounts[uCoin].outputAmount * 10 ** parseInt(baseInfo.decimal0)).toFixed();
+              input = Number(input).toLocaleString().replace(/,/g,"")
+            const trade = await new sdk[baseInfo.exchange].Trade(
+              new sdk[baseInfo.exchange].Route([pair], token0, token1),
+              new sdk[baseInfo.exchange].TokenAmount(token0, input),
+              sdk[baseInfo.exchange].TradeType.EXACT_INPUT
+            );
+            baseInput.push({
+              inputAmount: inputAmounts[uCoin].outputAmount,
+              outputAmount: trade.outputAmount.toSignificant(6),
+              dollarWorth: inputAmounts[uCoin].dollarWorth,
+            });
+          }
+          resolve(baseInput)
+        }
+      });
+    };
 
       let modifyBaseArray = async (baseArray,staticPathArray) => {
         return new Promise(async(resolve,reject) => {
@@ -174,7 +325,7 @@ io.use(async (socket, next) => {
           let newLayerArr = []
           for(let i =0; i < baseArray.length; i++){
             let index = staticPathArray.indexOf(baseArray[i]);
-            if(0 >= index){
+            if(0 > index){
                newLayerArr.push(baseArray[i])
             }
           }            
@@ -182,8 +333,9 @@ io.use(async (socket, next) => {
           resolve(newLayerArr);
         })
       }
-
-    let recFunction = async (staticPathArray, modifiedBaseArray,baseInfo) => {
+      /// staticPathArray = [BUSD]
+      // modifiedBaseArray = [WBNB,CAKE]
+    let recFunction = (staticPathArray, modifiedBaseArray,baseInfo) => {
       if(modifiedBaseArray.length == 0) return false;
       
       
@@ -192,6 +344,7 @@ io.use(async (socket, next) => {
         let lastElement = staticPathArray[staticPathArray.length-1];
         let pairsAvailable = [];
         let pairsNotAvailable = [];
+        let secondeLoopExcute = true;
 
         for(let i = 0; i < modifiedBaseArray.length; i++){
           let matchedFlag;
@@ -215,19 +368,25 @@ io.use(async (socket, next) => {
           
           if(matchedFlag.status && iTokenFlag.status) {
               staticPathArray.push(modifiedBaseArray[i], baseInfo.symbol0)
+              secondeLoopExcute = false;
               resolve(staticPathArray)
+              break;
           }
       }
+      if(secondeLoopExcute){
 
-      for(let j = 0; j < modifiedBaseArray.length; j++){
-        staticPathArray.push(modifiedBaseArray[j])
-          let innerModifiedBaseArray = await modifyBaseArray(baseArray, staticPathArray)
-         const resFn =  await recFunction(staticPathArray, innerModifiedBaseArray,baseInfo);
-         if(resFn) {
-          resolve(staticPathArray)
-         }
-    }
+        for(let j = 0; j < modifiedBaseArray.length; j++){
+          staticPathArray.push(modifiedBaseArray[j])
+            let innerModifiedBaseArray = await modifyBaseArray(baseArray, staticPathArray)
+           const resFn =  await recFunction(staticPathArray, innerModifiedBaseArray,baseInfo);
+           if(resFn && resFn.length > 0) {
+            resolve(resFn)
+            break;
+           }
+      }
+      }
 
+      resolve([]);
 
 
       })
@@ -297,7 +456,7 @@ io.use(async (socket, next) => {
           });
         } else {
            toToken = baseTokens[toToken] ? baseTokens[toToken].token.toString() : baseInfo.token0;
-          const res = await checkWithGraphAPI(baseTokens[fromToken].token.toString(), toToken,baseInfo);
+          const res = await checkPairExist(baseTokens[fromToken].token.toString(), toToken,baseInfo);
           if (res) {
 
             resolve({
@@ -317,25 +476,38 @@ io.use(async (socket, next) => {
     };
 
 
-    let checkWithGraphAPI = async (fromToken, toToken,baseInfo) => {
+    let checkReserves = async (pairId) => {
       return new Promise(async (resolve,reject)=> {
 
-      
-        let postData = {
-            token0: fromToken, 
-            token1: toToken,
-          };
-        let configUsdc = {
-          method: "POST",
-          url: `http://localhost:5000/checkUsdc/${baseInfo.exchange}`,
+        let config = {
+          method: "GET",
+          url: `http://localhost:5000/getReserves/${pairId}`,
           headers: {
             "Content-Type": "application/json",
           },
-          data: postData,
         };
-        axios(configUsdc).then(async (usdcResponse) => {
-          if (usdcResponse.data.data){
-            resolve(usdcResponse.data.data)
+        axios(config).then(async (response) => {
+          if (response.data.data.length > 0){
+             resolve(response.data.data)
+          } else {
+            resolve()
+          }
+        });
+      })
+    };
+    let token0Api = async (pairId) => {
+      return new Promise(async (resolve,reject)=> {
+
+        let config = {
+          method: "GET",
+          url: `http://localhost:5000/checkPairToken/${pairId}`,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        };
+        axios(config).then(async (response) => {
+          if (response.data.data){
+             resolve(response.data.data)
           } else {
             resolve()
           }
@@ -343,6 +515,107 @@ io.use(async (socket, next) => {
       })
     };
 
+    let checkPairExist = async (fromToken, toToken,baseInfo) => {
+      return new Promise(async (resolve,reject)=> {
+
+      
+        let postData = {
+            token0: fromToken, 
+            token1: toToken,
+            exchange: baseInfo.exchange
+          };
+        let config = {
+          method: "POST",
+          url: `http://localhost:5000/checkPair/`,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          data: postData,
+        };
+        axios(config).then(async (response) => {
+          if (response.data.data){
+             let checkAddress = await checkValidAddress(response.data.data)
+             if(checkAddress){
+               resolve(response.data.data)
+             } else {
+               resolve()
+             }
+          } else {
+            resolve()
+          }
+        });
+      })
+    };
+
+    let checkValidAddress = async(address) => {
+      return new Promise(async (resolve,reject) =>{
+        if(address.toString() !== "0x0000000000000000000000000000000000000000"){
+          resolve(true)
+        } else {
+          resolve(false)
+        }
+      })
+    }
+
+
+    let checkOtherExchange = async (baseOutputtValue,exchanges,baseInfo) => {      
+      let arbitrage = {}
+      if(baseOutputtValue.length > 0){ 
+
+        for(let j=0; j < exchanges.length; j++){
+            let otherPariAddr = exchanges[j].pairtoken.toString();
+            let otherExchange = exchanges[j].name.toString();
+            let getExchangeOutput = new Promise(async (resolve, reject) => {
+              
+              let getReserves = await checkReserves(otherPariAddr);
+              let getToken0Api = await token0Api(otherPariAddr);
+                let contractToken0 = getToken0Api.toLowerCase();
+                let checkWIthContractToken0 = baseInfo.token0.toLowerCase();
+                let reserve0;
+                let reserve1;
+                if(contractToken0 === checkWIthContractToken0) {
+                  reserve0 = getReserves[0].reserve0;
+                  reserve1 = getReserves[0].reserve1;
+                } else {
+                  reserve0 = getReserves[0].reserve1;
+                  reserve1 = getReserves[0].reserve0;
+                }
+
+                let token0 = new sdk[otherExchange].Token(1, Web3.utils.toChecksumAddress(baseInfo.token0), baseInfo.decimal0);
+                let token1 = new sdk[otherExchange].Token(1, Web3.utils.toChecksumAddress(baseInfo.token1), baseInfo.decimal1);
+
+                let pair = await new sdk[otherExchange].Pair(
+                  new sdk[otherExchange].TokenAmount(token0,reserve0.toString()),
+                  new sdk[otherExchange].TokenAmount(token1, reserve1.toString()),
+                )
+
+                let otherOutputs = []
+
+                for(let uInputs = 0; uInputs < baseOutputtValue.length; uInputs++ ){
+                  let decimalInputValue = (baseOutputtValue[uInputs].outputAmount * 10 ** parseInt(baseInfo.decimal1)).toFixed();
+                  decimalInputValue = Number(decimalInputValue).toLocaleString().replace(/,/g,"")
+                  let pairTrade = new sdk[otherExchange].Trade(
+                    new sdk[otherExchange].Route([pair], token1, token0),
+                    new sdk[otherExchange].TokenAmount(token1, decimalInputValue),
+                    sdk[otherExchange].TradeType.EXACT_INPUT
+                  );
+                  let diffExchange = pairTrade.outputAmount.toSignificant(6) - baseOutputtValue[uInputs].inputAmount;
+                  let percent = diffExchange/baseOutputtValue[uInputs].inputAmount*100;
+                  
+                  otherOutputs.push({exchage:`${baseInfo.exchange}(${baseOutputtValue[uInputs].inputAmount})->${otherExchange}(${pairTrade.outputAmount.toSignificant(6)}): (${baseOutputtValue[uInputs].dollarWorth})`, outputValue: pairTrade.outputAmount.toSignificant(6),otherExinput: baseOutputtValue[uInputs].outputAmount, BaseInput: baseOutputtValue[uInputs].inputAmount,arbitRange:percent,baseToken0: baseInfo.token0,baseToken1: baseInfo.token1})
+                }
+                resolve(otherOutputs)
+              
+            });
+  
+            let getValues = await getExchangeOutput;
+            arbitrage[baseInfo.exchange] = getValues
+            arbitrage['exchange'] = baseInfo.exchange
+            arbitrage['tokenIds'] = baseInfo.token0.toString()+baseInfo.token1.toString()
+        }
+      }
+      return arbitrage;
+    }
 
 
 
