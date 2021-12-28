@@ -104,7 +104,7 @@ io.use(async (socket, next) => {
 }).on("connection", function (socket) {
   if (!checkEvent) {
     let setCB = async (value, i) => {
-    //  intervals[i] = setInterval(async () => {
+     intervals[i] = setInterval(async () => {
         let allArbitrage = [];
         for (let e = 0; e < value.exchanges.length; e++) {
 
@@ -168,7 +168,7 @@ io.use(async (socket, next) => {
         io.sockets.emit(tokenIds,
           allArbitrage
         );
-      // }, 10000);
+      }, 10000);
     };
     //['BUSD', 'BAT']  // AUCTAL PAIR  : CAKE/DIA
     let inputTradecheck = async (staticPathArray,baseInfo) => {
