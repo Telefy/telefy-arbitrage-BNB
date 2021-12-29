@@ -122,7 +122,17 @@
 
             var tokenIds = data[i].token0.toString()+data[i].token1.toString();
             pricedata += `<tr id='${tokenIds}_row'>
-                          <th id='${tokenIds}_rowspan'>${data[i].symbol}</th></tr>`
+                          <th  rowspan='${data[i].exchanges.length}' id='${tokenIds}_rowspan'>${data[i].symbol}</th>`
+            
+            
+            for(var j =0;  j < data[i].exchanges.length; j++){
+              if(j != 0){
+                pricedata += `<tr>`    
+              }
+              pricedata += `<th class='${tokenIds}_${data[i].exchanges[j].name}'>${data[i].exchanges[j].name}</th>`;            
+              pricedata += `<th class='${tokenIds}_${data[i].exchanges[j].name}'></th>
+              </tr>`
+            }
             
             socket.on(data[i].token0.toString()+data[i].token1.toString(), function (msg) {
               console.log(msg,"---first tokn----")
