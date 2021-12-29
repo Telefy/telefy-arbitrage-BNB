@@ -47,7 +47,7 @@ io.use(async (socket, next) => {
           for (let ex = 0; ex < exchanges.length; ex++) {
             new Promise(async (resolve, rejects) => {
               await con.query(
-                `SELECT * FROM m_common_pair where exchange_id = '${exchanges[ex].exchange_id}' ORDER by pair_id ASC LIMIT 200`,
+                `SELECT * FROM m_common_pair where exchange_id = '${exchanges[ex].exchange_id}' and pair_id in (19,20) ORDER by pair_id ASC LIMIT 2`,
                 async (err, exresult) => {
                   if (err) throw err;
                   let i = 0;
@@ -168,9 +168,9 @@ io.use(async (socket, next) => {
         io.sockets.emit(tokenIds,
           allArbitrage
         );
-      }, 10000);
+      }, 30000);
     };
-    //['BUSD', 'BAT']  // AUCTAL PAIR  : CAKE/DIA
+    //['BUSD', 'MOONLIGHT']  // AUCTAL PAIR  : CAKE/DIA
     let inputTradecheck = async (staticPathArray,baseInfo) => {
       return new Promise(async (resolve,reject) => {
         let busdInput = []
@@ -291,8 +291,18 @@ io.use(async (socket, next) => {
 
         let getReserves = await checkReserves(baseInfo.pairId);
         if (getReserves.length > 0) {
-          let reserve0 = getReserves[0].reserve0;
-          let reserve1 = getReserves[0].reserve1;
+          let getToken0Api = await token0Api(baseInfo.pairId);
+          let contractToken0 = getToken0Api.toLowerCase();
+          let checkWIthContractToken0 = baseInfo.token0.toLowerCase();
+          let reserve0;
+          let reserve1;
+          if (contractToken0 === checkWIthContractToken0) {
+            reserve0 = getReserves[0].reserve0;
+            reserve1 = getReserves[0].reserve1;
+          } else {
+            reserve0 = getReserves[0].reserve1;
+            reserve1 = getReserves[0].reserve0;
+          }
 
           let pair = await new sdk[baseInfo.exchange].Pair(
             new sdk[baseInfo.exchange].TokenAmount(token0, reserve0.toString()),
