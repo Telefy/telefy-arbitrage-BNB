@@ -91,7 +91,16 @@
 
   $(document).ready(function () {
 
-    const socket = io("ws://localhost:3000", {
+    // var environment = "PRODUCTION";
+    var environment = "DEVELOPMENT";
+    var host;
+    if(environment == "PRODUCTION"){
+      host = "prototype-arbitrage.telefy.finance";
+    } else {
+      host = "localhost:3000";
+    }
+
+    const socket = io(`ws://${host}`, {
       reconnectionDelayMax: 10000,
       auth: {
         token: "123"
@@ -105,45 +114,54 @@
 
       $.ajax({
         type: 'GET',
-        url: "http://localhost:3000/getPrice",
+        url: `http://${host}/getPrice`,
         success: function (data) {
           var pricedata = '';
           //  socket.emit('client-info',{});
           for (var i = 0; i < data.length; i++) {
 
             var tokenIds = data[i].token0.toString()+data[i].token1.toString();
-            pricedata += `<tr>
-                          <th rowspan='${data[i].exchanges.length}'>${data[i].symbol}</th>`
+            pricedata += `<tr id='${tokenIds}_row'>
+                          <th id='${tokenIds}_rowspan'>${data[i].symbol}</th></tr>`
             
-            for(var j =0;  j < data[i].exchanges.length; j++){
-              if(j != 0){
-                pricedata += `<tr>`    
-              }
-              pricedata += `<th rowspan='1'>${data[i].exchanges[j].name}</th>`;            
-              pricedata += `<th id='${tokenIds}_${data[i].exchanges[j].name}'></th>
-              </tr>`
-            }
-
-            console.log(tokenIds,"---first tokn----")
             socket.on(data[i].token0.toString()+data[i].token1.toString(), function (msg) {
+              console.log(msg,"---first tokn----")
               if(msg.length > 0){
                 var tokens;
-                
-                for(var u=0; u < msg.length; u++){
-                  console.log(msg[u].tokenIds,": ",msg)
-                  if(Object.keys(msg[u]).length > 0){                    
-                    // $(`#${msg[u].tokenIds}`).html('')
-                    let exchangeName = msg[u].exchange;
-                    let data = '';
-                    tokens = msg[u].tokenIds                    
+                var rowspan = 0;
+                var deleteRow = true;
+                for(var u=0; u < msg.length; u++){   
+                    var exchangeName = msg[u].exchange;
+                    var data = '';
+                    tokens = msg[u].tokenIds                  
                     for(var p=0; p < msg[u][exchangeName].length;p++){
-                      if(msg[u][exchangeName][p].arbitRange !=''){
-                        data += `${msg[u][exchangeName][p].exchage} : ${msg[u][exchangeName][p].arbitRange} <br>`
-                        $(`#${tokens}_${exchangeName}`).html(data)
+                      $(`.${tokens}_${exchangeName}`).remove()
+                      if(msg[u][exchangeName][p].arbitRange !='' && parseInt(msg[u][exchangeName][p].arbitRange) > 0){
+                        data += `${msg[u][exchangeName][p].exchage} : ${msg[u][exchangeName][p].arbitRange} <br>`                        
+                      }                      
+                    }
+                    if(data){
+                      rowspan = rowspan+1;
+                      if(rowspan <= 1) {
+                        $(`#${tokens}_rowspan`).attr('rowspan',rowspan)
+                        $(`#${tokens}_rowspan`).after(`<th class = '${tokens}_${exchangeName}'>${exchangeName}</th><th class = '${tokens}_${exchangeName}'>${data}</th>`)
+                      } else {
+                        $(`#${tokens}_rowspan`).attr('rowspan',rowspan)
+                        $(`#${tokens}_row`).after(`<tr  class = '${tokens}_${exchangeName}'><th  class = '${tokens}_${exchangeName}'>${exchangeName}</th><th  class = '${tokens}_${exchangeName}'>${data}</th><tr>`)                        
                       }
                     }
+                    
+                    let checkRow = $(`.${tokens}_${exchangeName}`).html()
+                    if(checkRow !== undefined && checkRow !== ""){
+                      deleteRow = false
+                    }
+                  if(u == msg.length-1){
+                      if(deleteRow){
+                        $(`#${tokens}_row`).hide()
+                      } else {
+                        $(`#${tokens}_row`).show()
+                      }
                   }
-                                      
                 }
               }
               

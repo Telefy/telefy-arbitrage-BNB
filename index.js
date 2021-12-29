@@ -159,7 +159,7 @@ io.use(async (socket, next) => {
           })
 
           let uniswapInput = await getExchangeInput;
-          console.log(uniswapInput);
+          // console.log(uniswapInput);
             let worthThourArbit = await checkOtherExchange(uniswapInput,otherExchanges,baseInfo);
             allArbitrage.push(worthThourArbit);          
            
