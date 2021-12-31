@@ -1,21 +1,21 @@
 const apeSdk = require('love-apeswapfinance-sdk');
 const init = async () => {
-    const BUSD = new apeSdk.Token(1, '0xe9e7cea3dedca5984780bafc599bd69add087d56', 18)
-    const WBNB = new apeSdk.Token(1, '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c', 18)
+    const token0 = new apeSdk.Token(1, '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c', 18)
+    const token1 = new apeSdk.Token(1, '0x05b339b0a346bf01f851dde47a5d485c34fe220c', 8)
 
     const usdcWethPair = new apeSdk.Pair(
-        new apeSdk.TokenAmount(BUSD, "12930527756064370697222"),
-        new apeSdk.TokenAmount(WBNB,"7066481658877985705560152"),
+        new apeSdk.TokenAmount(token0, "779979390829595059083"),
+        new apeSdk.TokenAmount(token1,"50859888872576"),
       )
 
 
 
 // console.log(usdcWethPair)
-      let usdcInput  = 1000 * 10 ** 18;
+      let usdcInput  = 1.90742 * 10 ** 18;
 
    const trade =  new apeSdk.Trade(
-        new apeSdk.Route([usdcWethPair], BUSD,WBNB),
-        new apeSdk.TokenAmount(BUSD, usdcInput),
+        new apeSdk.Route([usdcWethPair], token1,token0),
+        new apeSdk.TokenAmount(token1, usdcInput),
         apeSdk.TradeType.EXACT_INPUT
       )
 

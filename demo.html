@@ -91,8 +91,8 @@
 
   $(document).ready(function () {
 
-    var environment = "PRODUCTION";
-    // var environment = "DEVELOPMENT";
+    // var environment = "PRODUCTION";
+    var environment = "DEVELOPMENT";
     var host;
     if(environment == "PRODUCTION"){
       host = "prototype-arbitrage.telefy.finance";
@@ -127,7 +127,7 @@
             
             for(var j =0;  j < data[i].exchanges.length; j++){
               if(j != 0){
-                pricedata += `<tr>`    
+                pricedata += `<tr class='${tokenIds}_${data[i].exchanges[j].name}'>`    
               }
               pricedata += `<th class='${tokenIds}_${data[i].exchanges[j].name}'>${data[i].exchanges[j].name}</th>`;            
               pricedata += `<th class='${tokenIds}_${data[i].exchanges[j].name}'></th>
@@ -146,9 +146,9 @@
                     tokens = msg[u].tokenIds                  
                     for(var p=0; p < msg[u][exchangeName].length;p++){
                       $(`.${tokens}_${exchangeName}`).remove()
-                      if(msg[u][exchangeName][p].arbitRange !='' && parseInt(msg[u][exchangeName][p].arbitRange) > 0){
+                      // if(msg[u][exchangeName][p].arbitRange !='' && parseInt(msg[u][exchangeName][p].arbitRange) > 0){
                         data += `${msg[u][exchangeName][p].exchage} : ${msg[u][exchangeName][p].arbitRange} <br>`                        
-                      }                      
+                      // }                      
                     }
                     if(data){
                       rowspan = rowspan+1;
@@ -157,7 +157,11 @@
                         $(`#${tokens}_rowspan`).after(`<th class = '${tokens}_${exchangeName}'>${exchangeName}</th><th class = '${tokens}_${exchangeName}'>${data}</th>`)
                       } else {
                         $(`#${tokens}_rowspan`).attr('rowspan',rowspan)
-                        $(`#${tokens}_row`).after(`<tr  class = '${tokens}_${exchangeName}'><th  class = '${tokens}_${exchangeName}'>${exchangeName}</th><th  class = '${tokens}_${exchangeName}'>${data}</th><tr>`)                        
+                        $(`#${tokens}_row`).after(`<tr class = '${tokens}_${exchangeName}'><th  class = '${tokens}_${exchangeName}'>${exchangeName}</th><th  class = '${tokens}_${exchangeName}'>${data}</th><tr>`)
+                        // if($(`.${tokens}_${exchangeName}`).closest("tr").next().html()){
+                          $(`.${tokens}_${exchangeName}`).closest("tr").next().remove()
+                        // }
+                    
                       }
                     }
                     

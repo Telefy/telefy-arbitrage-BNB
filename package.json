@@ -11,6 +11,7 @@
     "author": "",
     "license": "ISC",
     "dependencies": {
+        "@dynamic-amm/sdk": "^3.0.23",
         "@pancakeswap/sdk": "^2.4.0",
         "@sushiswap/sdk": "^5.0.0-canary.87",
         "@truffle/hdwallet-provider": "^1.6.0",
