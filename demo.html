@@ -146,9 +146,9 @@
                     tokens = msg[u].tokenIds                  
                     for(var p=0; p < msg[u][exchangeName].length;p++){
                       $(`.${tokens}_${exchangeName}`).remove()
-                      // if(msg[u][exchangeName][p].arbitRange !='' && parseInt(msg[u][exchangeName][p].arbitRange) > 0){
+                      if(msg[u][exchangeName][p].arbitRange !='' && Number(msg[u][exchangeName][p].arbitRange) >= 0){
                         data += `${msg[u][exchangeName][p].exchage} : ${msg[u][exchangeName][p].arbitRange} <br>`                        
-                      // }                      
+                      }                      
                     }
                     if(data){
                       rowspan = rowspan+1;

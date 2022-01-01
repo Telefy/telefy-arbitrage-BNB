@@ -163,17 +163,17 @@ io.use(async (socket, next) => {
             let inputTradeResult;
             if(baseTokens[staticPathArray[0]].token.toLowerCase() == baseInfo.token0.toLowerCase()){
               inputTradeResult = [[{
+                "inputAmount": "100",
+                "outputAmount": "100",
+                "dollarWorth": "$100",
+              },{
+                "inputAmount": "500",
+                "outputAmount": "500",
+                "dollarWorth": "$500",
+              },{
                 "inputAmount": "1000",
                 "outputAmount": "1000",
                 "dollarWorth": "$1000",
-              },{
-                "inputAmount": "5000",
-                "outputAmount": "5000",
-                "dollarWorth": "$5000",
-              },{
-                "inputAmount": "10000",
-                "outputAmount": "10000",
-                "dollarWorth": "$10000",
               }]]            
 
             } else {
@@ -223,11 +223,11 @@ io.use(async (socket, next) => {
              }
 
              let usdcInputCoins = [
+              "100000000000000000000",
+              "500000000000000000000",
               "1000000000000000000000",
-              "5000000000000000000000",
-              "10000000000000000000000",
             ];
-            let usdcInputDollars = ["$1000", "$5000", "$10000"];
+            let usdcInputDollars = ["$100", "$500", "$1000"];
 
 
 
