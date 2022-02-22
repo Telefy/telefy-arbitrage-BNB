@@ -1,45 +1,28 @@
-const {
-  ChainId,
-  Token,
-  WETH,
-  Fetcher,
-  Trade,
-  Route,
-  TokenAmount,
-  TradeType,
-} = require('@dynamic-amm/sdk');
+const Web3 = require("web3");
+const providerUrls = [
+  'https://bsc-dataseed1.ninicoin.io',
+  'https://bsc-dataseed1.defibit.io',
+  'https://bsc-dataseed.binance.org/',
+];
+const abi = require("../exchange-apis/abis");
+const factoryAddress = require("../exchange-apis/address");
+const pairs = []
 
-let init = async()=>{
-    
-    // // DMM Factory Address if using Ethereum Mainnet
-    // const DMMFactoryAddress = '0x833e4083B7ae46CeA85695c4f7ed25CDAd8886dE';
-    
-    // const DAI = new Token(
-    //   ChainId.MAINNET,
-    //   '0x6B175474E89094C44Da98b954EedeAC495271d0F',
-    //   18,
-    // );
-    // const pool = await Fetcher.fetchPairData(
-    //   DAI,
-    //   WETH[DAI.chainId],
-    //   DMMFactoryAddress,
-    // );
-    
-    // const route = new Route([pool], WETH[DAI.chainId]);
-    // const amountIn = '1000000000000000000'; // 1 WETH
-    // const trade = new Trade(
-    //   route,
-    //   new TokenAmount(WETH[DAI.chainId], amountIn),
-    //   TradeType.EXACT_INPUT,
-    // );
-    // console.log(trade.outputAmount.toSignificant(6))
-
-    const chainId = ChainId.MAINNET;
-const tokenAddress = '0xdeFA4e8a7bcBA345F687a2f1456F5Edd9CE97202'; // must be checksummed
-const KNC = await Fetcher.fetchTokenData(chainId, tokenAddress);
-
-console.log({ KNC });
-
+let count = 826;
+for(let i =0; i < count; i ++){
+  return new Promise(async(resolve,reject)=>{
+    let randomIndex = random(0, providerUrls.length - 1)
+      let httpProvider = new Web3.providers.HttpProvider(providerUrls[randomIndex], { timeout: 10000 })
+      let web3http = new Web3(httpProvider);
+      let PairContractHTTP = new web3http.eth.Contract(
+        abi["BISWAP"].factory,
+        factoryAddress.mainnet["BISWAP"].factory
+      );
+      let pairId = await PairContractHTTP.methods.allPairs(i).call();    
+      if(i == count-1){
+        fs.writeFileSync('./biswap.txt', JSON.stringify(pairs))
+      }
+  })
 }
 
-init().then();
+  

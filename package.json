@@ -21,6 +21,7 @@
         "@web3-react/core": "^6.1.9",
         "aion-web3": "^1.2.7-beta.0",
         "big.js": "^6.1.1",
+        "biswap-sdk": "^1.1.2",
         "bn.js": "^5.2.0",
         "dotenv": "^8.6.0",
         "eip-712": "^0.4.3",
